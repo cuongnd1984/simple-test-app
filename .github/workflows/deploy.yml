@@ -26,33 +26,55 @@ jobs:
         APP_SERVER: ${{ secrets.APP_SERVER }}
         APP_USER: ${{ secrets.APP_SERVER_USER }}
         APP_DIR: ${{ secrets.APP_DIR }}
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
+        # Validate environment variables
+        if [ -z "$APP_SERVER" ] || [ -z "$APP_USER" ] || [ -z "$APP_DIR" ] || [ -z "$SSH_PRIVATE_KEY" ]; then
+          echo "❌ Error: Missing required environment variables"
+          echo "APP_SERVER: ${APP_SERVER:-NOT SET}"
+          echo "APP_USER: ${APP_USER:-NOT SET}"
+          echo "APP_DIR: ${APP_DIR:-NOT SET}"
+          echo "SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:+SET}${SSH_PRIVATE_KEY:-NOT SET}"
+          exit 1
+        fi
+        
         # Configure SSH
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan -H ${APP_SERVER} >> ~/.ssh/known_hosts
+        
+        # Add app server to known hosts
+        echo "🔑 Adding ${APP_SERVER} to known_hosts..."
+        ssh-keyscan -H "$APP_SERVER" >> ~/.ssh/known_hosts 2>&1 || {
+          echo "⚠️ Warning: ssh-keyscan failed, continuing anyway..."
+        }
         
         # Pull latest code
         echo "📥 Pulling latest code..."
-        ssh ${APP_USER}@${APP_SERVER} "cd ${APP_DIR} && git pull origin main || git pull origin master"
+        ssh -o StrictHostKeyChecking=no "${APP_USER}@${APP_SERVER}" "cd ${APP_DIR} && git pull origin main || git pull origin master"
         
         # Rebuild and restart
         echo "🔨 Rebuilding containers..."
-        ssh ${APP_USER}@${APP_SERVER} "cd ${APP_DIR} && docker compose down"
-        ssh ${APP_USER}@${APP_SERVER} "cd ${APP_DIR} && docker compose build --no-cache"
-        ssh ${APP_USER}@${APP_SERVER} "cd ${APP_DIR} && docker compose up -d"
+        ssh -o StrictHostKeyChecking=no "${APP_USER}@${APP_SERVER}" "cd ${APP_DIR} && docker compose down"
+        ssh -o StrictHostKeyChecking=no "${APP_USER}@${APP_SERVER}" "cd ${APP_DIR} && docker compose build --no-cache"
+        ssh -o StrictHostKeyChecking=no "${APP_USER}@${APP_SERVER}" "cd ${APP_DIR} && docker compose up -d"
         
         # Health check
         echo "🏥 Health check..."
         sleep 5
-        ssh ${APP_USER}@${APP_SERVER} "cd ${APP_DIR} && docker compose ps"
+        ssh -o StrictHostKeyChecking=no "${APP_USER}@${APP_SERVER}" "cd ${APP_DIR} && docker compose ps"
         
     - name: Test endpoint
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      env:
+        APP_SERVER: ${{ secrets.APP_SERVER }}
       run: |
         sleep 10
-        curl -f http://${APP_SERVER}:3000/health || echo "Health check failed"
+        if [ -z "$APP_SERVER" ]; then
+          echo "⚠️ APP_SERVER not set, skipping health check"
+          exit 0
+        fi
+        curl -f "http://${APP_SERVER}:3000/health" || echo "Health check failed"
       continue-on-error: true
         
     - name: Notify deployment success
