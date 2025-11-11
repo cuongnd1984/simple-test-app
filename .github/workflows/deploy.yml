@@ -20,6 +20,15 @@ jobs:
       run: |
         docker compose build
         
+    - name: Debug - Check secrets availability
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        echo "🔍 Checking if secrets are available..."
+        echo "APP_SERVER secret exists: ${{ secrets.APP_SERVER != '' && 'YES' || 'NO' }}"
+        echo "APP_SERVER_USER secret exists: ${{ secrets.APP_SERVER_USER != '' && 'YES' || 'NO' }}"
+        echo "APP_DIR secret exists: ${{ secrets.APP_DIR != '' && 'YES' || 'NO' }}"
+        echo "SSH_PRIVATE_KEY secret exists: ${{ secrets.SSH_PRIVATE_KEY != '' && 'YES' || 'NO' }}"
+        
     - name: Deploy to production
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       env:
@@ -28,13 +37,26 @@ jobs:
         APP_DIR: ${{ secrets.APP_DIR }}
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       run: |
+        # Debug: Show what we received (without exposing sensitive data)
+        echo "🔍 Debug: Environment variables received"
+        echo "APP_SERVER length: ${#APP_SERVER}"
+        echo "APP_USER length: ${#APP_USER}"
+        echo "APP_DIR length: ${#APP_DIR}"
+        echo "SSH_PRIVATE_KEY length: ${#SSH_PRIVATE_KEY}"
+        
         # Validate environment variables
         if [ -z "$APP_SERVER" ] || [ -z "$APP_USER" ] || [ -z "$APP_DIR" ] || [ -z "$SSH_PRIVATE_KEY" ]; then
           echo "❌ Error: Missing required environment variables"
           echo "APP_SERVER: ${APP_SERVER:-NOT SET}"
           echo "APP_USER: ${APP_USER:-NOT SET}"
           echo "APP_DIR: ${APP_DIR:-NOT SET}"
-          echo "SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:+SET}${SSH_PRIVATE_KEY:-NOT SET}"
+          echo "SSH_PRIVATE_KEY: ${SSH_PRIVATE_KEY:+SET (length: ${#SSH_PRIVATE_KEY})}${SSH_PRIVATE_KEY:-NOT SET}"
+          echo ""
+          echo "💡 Troubleshooting:"
+          echo "1. Check GitHub Secrets: https://github.com/${{ github.repository }}/settings/secrets/actions"
+          echo "2. Ensure secrets are named exactly: APP_SERVER, APP_SERVER_USER, APP_DIR, SSH_PRIVATE_KEY"
+          echo "3. Secrets must be created at Repository level, not Organization/User level"
+          echo "4. After creating/updating secrets, re-run this workflow"
           exit 1
         fi
         
