@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nginx App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        .info { color: #666; margin: 10px 0; }
+        .link { color: #0066cc; text-decoration: none; }
+        .link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Nginx App</h1>
+        <p class="info">Deployed via CI/CD</p>
+        <p class="info">Server: Nginx Alpine</p>
+        <p class="info">Port: 8080</p>
+        <p class="info">Status: <span style="color: green;">Running</span></p>
+        <hr>
+        <p class="info">
+            <a href="http://192.168.1.99:3000" class="link" target="_blank">Simple Test App (Port 3000)</a>
+        </p>
+    </div>
+</body>
+</html>
